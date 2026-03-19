@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>YBC SISTEMA V22</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --p: #e67e22; --s: #2c3e50; --bg: #f4f7f6; --ok: #27ae60; --yape: #8e44ad; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        /* AJUSTE PARA PC: Centra la app y le da forma de celular */
+        body { 
+            margin: 0; 
+            background: #1a252f; /* Fondo oscuro para resaltar la app en PC */
+            height: 100vh; 
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #contenedor-global {
+            width: 100%;
+            max-width: 450px; /* Ancho máximo tipo celular */
+            height: 100%;
+            background: var(--s);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+        
+        #pantalla-login { position: absolute; inset: 0; background: var(--s); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-card { background: white; padding: 30px; border-radius: 20px; width: 90%; text-align: center; }
+        
+        #app-principal { display: none; flex-direction: column; height: 100%; background: var(--bg); overflow: hidden; }
+        header { background: var(--s); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--p); flex-shrink: 0; }
+        .nav-tabs { display: flex; background: white; border-bottom: 1px solid #ddd; flex-shrink: 0; }
+        .nav-link { flex: 1; text-align: center; padding: 15px; cursor: pointer; font-weight: bold; color: #7f8c8d; font-size: 0.8rem; }
+        .nav-link.active { color: var(--p); border-bottom: 3px solid var(--p); background: #fffdfa; }
+
+        .content { flex: 1; padding: 15px; overflow-y: auto; display: none; }
+        .content.active { display: block; }
+        
+        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .fila-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+        .tit-principal { font-size: 1.1rem; font-weight: 900; color: var(--s); text-transform: uppercase; }
+        .tit-sobrante { font-size: 0.65rem; font-weight: 700; color: #95a5a6; text-transform: uppercase; }
+        .sub-label-simple { display: block; font-size: 0.65rem; font-weight: 700; color: #95a5a6; margin-bottom: 4px; text-transform: uppercase; }
+
+        input, select { width: 100%; padding: 12px; border: 2px solid #edf2f7; border-radius: 10px; font-size: 1.2rem; font-weight: 700; text-align: center; color: var(--s); outline: none; }
+        input[readonly] { background-color: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+
+        .btn-main { width: 100%; padding: 16px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; margin-top: 10px; background: var(--ok); color: white; font-size: 1rem; }
+        .btn-logout { background: #e74c3c; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+
+        #toast {
+            position: absolute; bottom: -100px; left: 50%; transform: translateX(-50%);
+            background: #333; color: white; padding: 12px 20px; border-radius: 50px;
+            font-size: 0.85rem; font-weight: 600; text-align: center; width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 2000; border-left: 5px solid var(--ok);
+        }
+        #toast.show { bottom: 30px; }
+
+        .resumen-metas { background: var(--s); color: white; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-bottom: 15px; }
+        .resumen-metas b { display: block; color: var(--p); font-size: 1.1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; margin-bottom: 8px; padding-bottom: 4px; }
+        .punto-txt { font-weight: 900; color: var(--p); font-size: 13px; text-transform: uppercase; }
+        .fecha-solo { font-weight: 800; color: var(--s); font-size: 10px; text-align: center; display: block; width: 100%; border-bottom: 1px solid #f0f0f0; margin-bottom: 8px; padding-bottom: 4px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div id="contenedor-global">
+    <div id="toast">✅ Registro guardado</div>
+
+    <div id="pantalla-login">
+        <div class="login-card">
+            <h2 style="color:var(--p); margin-bottom:20px;">YBC ACCESO</h2>
+            <select id="login-punto" onchange="togglePass()" style="margin-bottom:15px;">
+                <option value="" disabled selected>Selecciona Punto...</option>
+                <option value="ADMIN">👑 ADMINISTRADOR</option>
+                <option value="SPELUCIN">SPELUCIN</option>
+                <option value="SORANA">SORANA</option>
+                <option value="DOMINICOS">DOMINICOS</option>
+                <option value="INGUNZA">INGUNZA</option>
+                <option value="LIBERTADORES">LIBERTADORES</option>
+                <option value="TAMBO">TAMBO</option>
+            </select>
+            <div id="pass-area" style="display:none; margin-bottom:15px;"><input type="password" id="login-pass" placeholder="Clave Master"></div>
+            <button class="btn-main" onclick="login()">INGRESAR</button>
+        </div>
+    </div>
+
+    <div id="app-principal">
+        <header>
+            <span id="txt-user" style="font-weight:800; font-size:0.9rem;">📍 PUNTO</span>
+            <button class="btn-logout" onclick="salirSeguro()">SALIR</button>
+        </header>
+
+        <div class="nav-tabs">
+            <div class="nav-link active" id="tab-reg" onclick="irA('registro')">REGISTRO</div>
+            <div class="nav-link" id="tab-met" onclick="irA('metas')">RESUMEN</div>
+        </div>
+
+        <div id="registro" class="content active">
+            <div class="card">
+                <div id="area-admin-sel" style="display:none; margin-bottom:10px;">
+                    <span class="sub-label-simple">Punto de Venta</span>
+                    <select id="sel-punto-admin" onchange="cargarVentaExistente()"></select>
+                </div>
+                <span class="sub-label-simple">Fecha de Operación</span>
+                <input type="date" id="f-reg" readonly>
+            </div>
+            
+            <div class="card">
+                <div class="fila-header">
+                    <span class="tit-principal">CHURROS</span>
+                    <span class="tit-sobrante">SOBRANTES</span>
+                </div>
+                <div class="grid-2">
+                    <input type="number" id="ce" placeholder="0" oninput="calcular()">
+                    <input type="number" id="cs" placeholder="0" oninput="calcular()">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="fila-header">
+                    <span class="tit-principal">BOLSITAS</span>
+                    <span class="tit-sobrante">SOBRANTES</span>
+                </div>
+                <div class="grid-2">
+                    <input type="number" id="ye" placeholder="0" oninput="calcular()">
+                    <input type="number" id="ys" placeholder="0" oninput="calcular()">
+                </div>
+            </div>
+            
+            <div class="card">
+                <span class="sub-label-simple" style="color:var(--yape);">COBROS POR YAPE (S/)</span>
+                <input type="number" id="vy" value="0" oninput="calcular()">
+            </div>
+            
+            <div class="card" style="background:var(--s); color:white; text-align:center;">
+                <div class="grid-2">
+                    <div><small style="font-size:0.6rem; font-weight:700;">VENTA TOTAL</small><br><b id="res-v" style="color:var(--p); font-size:1.4rem;">0.00</b></div>
+                    <div><small style="font-size:0.6rem; font-weight:700;">EFECTIVO</small><br><b id="res-e" style="color:var(--p); font-size:1.4rem;">0.00</b></div>
+                </div>
+            </div>
+            <button class="btn-main" onclick="guardar()">GUARDAR REGISTRO</button>
+        </div>
+
+        <div id="metas" class="content">
+            <div id="box-filtro-admin" class="card"><span class="sub-label-simple">Filtrar por Fecha:</span><input type="date" id="f-meta" onchange="cargarMetas()"></div>
+            <div class="resumen-metas">
+                <div><small>Efectivo</small><b id="tot-e">0</b></div>
+                <div><small>Yape</small><b id="tot-y">0</b></div>
+                <div><small>Total</small><b id="tot-t" style="color:white">0</b></div>
+            </div>
+            <div id="lista-metas"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    firebase.initializeApp({ databaseURL: "https://ybc-01-default-rtdb.firebaseio.com/" });
+    const db = firebase.database();
+    let ES_ADMIN = false; let MI_PUNTO = "";
+    const PUNTOS = ["SPELUCIN", "SORANA", "DOMINICOS", "INGUNZA", "LIBERTADORES", "TAMBO"];
+
+    function showToast(msg) {
+        const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    function togglePass() { document.getElementById('pass-area').style.display = (document.getElementById('login-punto').value === "ADMIN" ? "block" : "none"); }
+
+    function salirSeguro() {
+        if(confirm("¿Deseas cerrar sesión?")) {
+            ES_ADMIN = false; MI_PUNTO = "";
+            document.getElementById('app-principal').style.display = 'none';
+            document.getElementById('pantalla-login').style.display = 'flex';
+            document.getElementById('login-punto').value = "";
+            document.getElementById('login-pass').value = "";
+            document.querySelectorAll('input[type="number"]').forEach(i => { i.value = (i.id === 'vy') ? 0 : ""; i.readOnly = false; });
+            calcular();
+        }
+    }
+
+    function login() {
+        const p = document.getElementById('login-punto').value;
+        if(!p) return alert("Selecciona un punto");
+        if(p === "ADMIN" && document.getElementById('login-pass').value !== "1234") return alert("Clave error");
+        ES_ADMIN = (p === "ADMIN"); MI_PUNTO = p;
+        document.getElementById('pantalla-login').style.display = 'none';
+        document.getElementById('app-principal').style.display = 'flex';
+        document.getElementById('txt-user').innerText = "📍 " + p;
+        const hoy = new Date(Date.now() - 18000000).toISOString().split('T')[0];
+        document.getElementById('f-reg').value = hoy; document.getElementById('f-meta').value = hoy;
+        if(!ES_ADMIN) {
+            document.getElementById('ce').readOnly = true; document.getElementById('ye').readOnly = true;
+            document.getElementById('area-admin-sel').style.display = 'none';
+            document.getElementById('box-filtro-admin').style.display = 'none';
+        } else {
+            document.getElementById('ce').readOnly = false; document.getElementById('ye').readOnly = false;
+            document.getElementById('area-admin-sel').style.display = 'block';
+            document.getElementById('box-filtro-admin').style.display = 'block';
+            let h = ""; PUNTOS.forEach(x => h += `<option value="${x}">${x}</option>`);
+            document.getElementById('sel-punto-admin').innerHTML = h;
+        }
+        irA('registro'); cargarVentaExistente();
+    }
+
+    function irA(tab) {
+        document.querySelectorAll('.content, .nav-link').forEach(el => el.classList.remove('active'));
+        document.getElementById(tab).classList.add('active');
+        document.getElementById('tab-' + (tab === 'registro' ? 'reg' : 'met')).classList.add('active');
+        if(tab === 'metas') cargarMetas();
+    }
+
+    function formateaFecha(txt) {
+        const dias = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+        const f = new Date(txt + "T00:00:00");
+        return `${dias[f.getDay()]} ${f.getDate().toString().padStart(2,'0')}/${(f.getMonth()+1).toString().padStart(2,'0')}/${f.getFullYear()}`;
+    }
+
+    function calcular() {
+        const val = (id) => parseFloat(document.getElementById(id).value) || 0;
+        const total = ((val('ce') - val('cs')) + (val('ye') - val('ys'))) * 2.5;
+        document.getElementById('res-v').innerText = total.toFixed(2);
+        document.getElementById('res-e').innerText = (total - val('vy')).toFixed(2);
+        return { total, yape: val('vy'), efectivo: total - val('vy') };
+    }
+
+    function cargarVentaExistente() {
+        const p = ES_ADMIN ? document.getElementById('sel-punto-admin').value : MI_PUNTO;
+        const f = document.getElementById('f-reg').value;
+        db.ref(`ventas/${f}_${p}`).once('value', sn => {
+            const d = sn.val();
+            document.getElementById('ce').value = d ? d.chA : ""; document.getElementById('cs').value = d ? d.chS : "";
+            document.getElementById('ye').value = d ? d.boA : ""; document.getElementById('ys').value = d ? d.boS : "";
+            document.getElementById('vy').value = d ? d.y : 0;
+            calcular();
+        });
+    }
+
+    function guardar() {
+        const p = ES_ADMIN ? document.getElementById('sel-punto-admin').value : MI_PUNTO;
+        const f = document.getElementById('f-reg').value;
+        const c = calcular();
+        const data = { f, p, chA: parseFloat(document.getElementById('ce').value)||0, chS: parseFloat(document.getElementById('cs').value)||0, boA: parseFloat(document.getElementById('ye').value)||0, boS: parseFloat(document.getElementById('ys').value)||0, y: c.yape, vTotal: c.total, eEntregar: c.efectivo };
+        db.ref(`ventas/${f}_${p}`).set(data).then(() => {
+            showToast(`✅ S/ ${c.total.toFixed(2)} Guardado (Efec: S/ ${c.efec.toFixed(2)})`); // Ajustado error de nombre de variable
+            if(!ES_ADMIN) setTimeout(() => irA('metas'), 1500);
+        });
+    }
+
+    function cargarMetas() {
+        const fBusca = document.getElementById('f-meta').value;
+        const lista = document.getElementById('lista-metas');
+        lista.innerHTML = "<p style='text-align:center;'>Cargando historial...</p>";
+        db.ref('ventas').once('value', sn => {
+            let te=0, ty=0, h="", regs=[];
+            sn.forEach(hijo => { regs.push(hijo.val()); });
+            let filtrados = regs.filter(v => ES_ADMIN ? v.f === fBusca : v.p === MI_PUNTO);
+            if(!ES_ADMIN) { filtrados.sort((a,b) => new Date(b.f) - new Date(a.f)); filtrados = filtrados.slice(0, 7); }
+            filtrados.forEach(v => {
+                const total = v.vTotal || 0; const yape = v.y || 0; const efec = v.eEntregar || 0;
+                const hoyStr = new Date(Date.now() - 18000000).toISOString().split('T')[0];
+                if(ES_ADMIN || v.f === hoyStr) { te += efec; ty += yape; }
+                let cab = ES_ADMIN ? `<div class="card-header-row"><span class="punto-txt">${v.p}</span><span>${formateaFecha(v.f)}</span></div>` : `<span class="fecha-solo">${formateaFecha(v.f)}</span>`;
+                h += `<div class="card">${cab}<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; font-size:11px; text-align:center;">
+                        <div><span class="sub-label-simple">Efectivo</span><b>S/ ${efec.toFixed(1)}</b></div>
+                        <div><span class="sub-label-simple">Yape</span><b>S/ ${yape.toFixed(1)}</b></div>
+                        <div><span class="sub-label-simple">Total</span><b style="color:var(--ok)">S/ ${total.toFixed(1)}</b></div>
+                    </div></div>`;
+            });
+            document.getElementById('tot-e').innerText = te.toFixed(1);
+            document.getElementById('tot-y').innerText = ty.toFixed(1);
+            document.getElementById('tot-t').innerText = (te + ty).toFixed(1);
+            lista.innerHTML = h || "<p style='text-align:center;'>Sin registros.</p>";
+        });
+    }
+</script>
+</body>
+</html>
