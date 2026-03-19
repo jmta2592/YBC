@@ -3,44 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>YBC SISTEMA V22</title>
+    <title>YBC SISTEMA V23</title>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
         :root { --p: #e67e22; --s: #2c3e50; --bg: #f4f7f6; --ok: #27ae60; --yape: #8e44ad; }
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* AJUSTE PARA PC: Centra la app y le da forma de celular */
         body { 
             margin: 0; 
-            background: #1a252f; /* Fondo oscuro para resaltar la app en PC */
+            background: #1a252f; 
             height: 100vh; 
             display: flex;
             justify-content: center;
-            overflow: hidden;
+            overflow: hidden; /* Evita rebotes raros en el navegador */
         }
 
         #contenedor-global {
             width: 100%;
-            max-width: 450px; /* Ancho máximo tipo celular */
+            max-width: 450px;
             height: 100%;
             background: var(--s);
             position: relative;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
         
         #pantalla-login { position: absolute; inset: 0; background: var(--s); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .login-card { background: white; padding: 30px; border-radius: 20px; width: 90%; text-align: center; }
         
-        #app-principal { display: none; flex-direction: column; height: 100%; background: var(--bg); overflow: hidden; }
+        #app-principal { display: none; flex-direction: column; height: 100%; background: var(--bg); }
         header { background: var(--s); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--p); flex-shrink: 0; }
+        
         .nav-tabs { display: flex; background: white; border-bottom: 1px solid #ddd; flex-shrink: 0; }
         .nav-link { flex: 1; text-align: center; padding: 15px; cursor: pointer; font-weight: bold; color: #7f8c8d; font-size: 0.8rem; }
         .nav-link.active { color: var(--p); border-bottom: 3px solid var(--p); background: #fffdfa; }
 
-        .content { flex: 1; padding: 15px; overflow-y: auto; display: none; }
+        /* EL TRUCO ESTÁ AQUÍ: Padding bottom de 80px para que el botón no choque con la barra del celular */
+        .content { 
+            flex: 1; 
+            padding: 15px 15px 80px 15px; 
+            overflow-y: auto; 
+            display: none; 
+            -webkit-overflow-scrolling: touch; 
+        }
         .content.active { display: block; }
         
         .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
@@ -52,17 +58,17 @@
         input, select { width: 100%; padding: 12px; border: 2px solid #edf2f7; border-radius: 10px; font-size: 1.2rem; font-weight: 700; text-align: center; color: var(--s); outline: none; }
         input[readonly] { background-color: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
 
-        .btn-main { width: 100%; padding: 16px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; margin-top: 10px; background: var(--ok); color: white; font-size: 1rem; }
+        .btn-main { width: 100%; padding: 18px; border: none; border-radius: 15px; font-weight: 800; cursor: pointer; margin-top: 15px; background: var(--ok); color: white; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3); }
         .btn-logout { background: #e74c3c; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
 
         #toast {
             position: absolute; bottom: -100px; left: 50%; transform: translateX(-50%);
             background: #333; color: white; padding: 12px 20px; border-radius: 50px;
-            font-size: 0.85rem; font-weight: 600; text-align: center; width: 90%;
+            font-size: 0.85rem; font-weight: 600; text-align: center; width: 85%;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 2000; border-left: 5px solid var(--ok);
         }
-        #toast.show { bottom: 30px; }
+        #toast.show { bottom: 40px; }
 
         .resumen-metas { background: var(--s); color: white; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-bottom: 15px; }
         .resumen-metas b { display: block; color: var(--p); font-size: 1.1rem; }
@@ -252,7 +258,7 @@
         const c = calcular();
         const data = { f, p, chA: parseFloat(document.getElementById('ce').value)||0, chS: parseFloat(document.getElementById('cs').value)||0, boA: parseFloat(document.getElementById('ye').value)||0, boS: parseFloat(document.getElementById('ys').value)||0, y: c.yape, vTotal: c.total, eEntregar: c.efectivo };
         db.ref(`ventas/${f}_${p}`).set(data).then(() => {
-            showToast(`✅ S/ ${c.total.toFixed(2)} Guardado (Efec: S/ ${c.efec.toFixed(2)})`); // Ajustado error de nombre de variable
+            showToast(`✅ S/ ${c.total.toFixed(2)} Guardado (Efec: S/ ${c.efectivo.toFixed(2)})`);
             if(!ES_ADMIN) setTimeout(() => irA('metas'), 1500);
         });
     }
